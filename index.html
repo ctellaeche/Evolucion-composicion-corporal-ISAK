@@ -188,11 +188,32 @@ h2 .idx{
 }
 .flag:hover,.flag[aria-expanded="true"]{color:#8A5A08}
 .flag.dot{font-size:17px;vertical-align:-1px;font-weight:700}
+.defbtn{
+  appearance:none;-webkit-appearance:none;border:0;background:none;padding:0;margin:0;
+  font:inherit;color:inherit;text-align:left;cursor:help;
+  border-bottom:1px dotted #9DACB5;
+}
+.defbtn:hover,.defbtn[aria-expanded="true"]{border-bottom-color:var(--cyan);color:var(--cyan)}
 #tip{
   position:absolute;z-index:60;background:var(--ink);color:#E6EDF1;
   font-family:"IBM Plex Sans",sans-serif;font-size:12.5px;line-height:1.52;
-  padding:11px 13px;border-left:3px solid var(--amber);
-  box-shadow:0 8px 22px rgba(19,32,42,.22);
+  padding:12px 14px;border-left:3px solid var(--cyan);
+  box-shadow:0 8px 22px rgba(19,32,42,.24);
+}
+#tip.warn{border-left-color:var(--amber)}
+#tip h5{
+  font-family:"Archivo",sans-serif;font-stretch:80%;font-weight:700;font-size:13px;
+  margin:0 0 9px;color:#FFF;letter-spacing:.02em;
+}
+#tip .r + .r{margin-top:9px}
+#tip .r b{
+  display:block;font-family:"Archivo",sans-serif;font-stretch:76%;font-weight:700;
+  font-size:9.5px;text-transform:uppercase;letter-spacing:.14em;color:#7FB2C4;margin-bottom:2px;
+}
+#tip .r span{display:block;font-size:12.4px;line-height:1.48;color:#DCE6EB}
+#tip code{
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;
+  background:rgba(255,255,255,.11);padding:1px 4px;
 }
 #tip[hidden]{display:none}
 
@@ -326,7 +347,7 @@ footer{margin-top:64px;padding-top:18px;border-top:1px solid var(--rule);
 <section id="explorador">
   <h2><span class="idx">01</span> Explorador de variables</h2>
   <div class="hrule"></div>
-  <p class="lede">Cada variable medida, con su recorrido completo. Están agrupadas por categoría, y dentro de cada grupo comparten unidad. El botón <b>+</b> de cualquier mosaico la manda al comparador de arriba, que dibuja los valores reales en su propia unidad. El triángulo <span style="color:#BF8214">▲</span> marca una nota de método: pasa el cursor o tócalo para leerla.</p>
+  <p class="lede">Cada variable medida, con su recorrido completo. Están agrupadas por categoría, y dentro de cada grupo comparten unidad. El botón <b>+</b> de cualquier mosaico la manda al comparador de arriba, que dibuja los valores reales en su propia unidad. Los nombres <span class="defbtn" style="cursor:default">subrayados con puntos</span> abren una ficha con qué es la variable, cómo se obtiene y qué significa. El triángulo <span style="color:#BF8214">▲</span> marca una nota de método.</p>
 
   <div class="toolbar">
     <input class="search" id="q" type="search" placeholder="Buscar variable (pliegue, cintura, muscular…)" aria-label="Buscar variable">
@@ -605,24 +626,98 @@ const firstIdx = a => a.findIndex(x=>x!==null&&x!==undefined);const lastIdx  = a
 const nOf = a => a.filter(x=>x!==null&&x!==undefined).length;
 function xOfDay(day,x0,w){ return x0 + (day/SPAN)*w; }
 
+/* ============================================================
+   FICHAS DE CADA VARIABLE
+   q = qué es · c = cómo se obtiene · s = qué significa
+   ============================================================ */
+const DEFS={
+masa:{q:'El peso total del cuerpo, sin separar tejidos.',c:'Báscula calibrada, ropa mínima y sin zapatos. En el protocolo ISAK se toma antes de los pliegues.',s:'Por sí sola dice poco: dos personas del mismo peso pueden tener composiciones opuestas. Su valor está en cruzarla con pliegues y perímetros.'},
+talla:{q:'La estatura de pie, del vértex al suelo.',c:'Estadiómetro, talones juntos, cabeza en plano de Frankfort y tracción suave del cuello durante una inspiración profunda.',s:'Escala el modelo Phantom y entra en el IMC, el índice cintura-talla y la superficie corporal, así que medio centímetro de error se propaga a varios índices.'},
+
+tri:{q:'Grasa subcutánea de la cara posterior del brazo.',c:'Plicómetro, pliegue vertical en el punto medio entre acromion y olécranon, brazo relajado, lado derecho.',s:'Es de los sitios que menos se mueven a corto plazo y de los más usados para estimar adiposidad general.'},
+sub:{q:'Grasa subcutánea de la espalda alta.',c:'Pliegue oblicuo a 45°, dos centímetros por debajo del ángulo inferior de la escápula.',s:'Se asocia a la adiposidad del tronco, que es la que más se relaciona con riesgo metabólico.'},
+sup:{q:'Grasa subcutánea del costado, arriba de la cresta ilíaca.',c:'Pliegue oblicuo donde la línea del borde axilar anterior cruza la altura de la cresta ilíaca.',s:'Entra en el cálculo del somatotipo y acompaña al abdominal como señal de grasa central.'},
+abd:{q:'Grasa subcutánea del abdomen.',c:'Pliegue vertical cinco centímetros a la derecha del ombligo.',s:'Es el que más responde a cambios de alimentación y el que tu antropometrista marcó como el indicador a vigilar.'},
+mus:{q:'Grasa subcutánea de la cara anterior del muslo.',c:'Pliegue longitudinal en el punto medio entre el pliegue inguinal y el borde superior de la rótula.',s:'Además de sumar a la adiposidad total, sirve para descontar grasa del perímetro del muslo.'},
+pie:{q:'Grasa subcutánea de la pantorrilla.',c:'Pliegue vertical en la cara medial de la pierna, a la altura del perímetro máximo.',s:'Se usa para corregir el perímetro de la pierna y quedarse con lo que es músculo y hueso.'},
+sum6:{q:'La suma de los seis pliegues.',c:'Tríceps + subescapular + supraespinal + abdominal + muslo + pierna.',s:'Es el indicador de adiposidad más estable del seguimiento, porque no depende de ninguna ecuación. La regla práctica de tu informe: cada 5 mm equivalen a cerca de 1 kg de grasa corporal.'},
+
+brel:{q:'Contorno del brazo en reposo.',c:'Cinta metálica flexible a la altura del punto medio acromiale-radiale, brazo colgando y sin comprimir el tejido.',s:'Mezcla músculo, hueso y grasa. Para leer solo el músculo hay que corregirlo con el pliegue del tríceps.'},
+bflx:{q:'Contorno máximo del brazo con el bíceps contraído.',c:'Codo a 90°, contracción máxima, se busca el punto de mayor perímetro.',s:'Restándole el brazo relajado se obtiene cuánto crece el brazo al contraerse, un indicio simple de calidad muscular.'},
+cint:{q:'Contorno del abdomen en su punto más estrecho.',c:'Entre la última costilla y la cresta ilíaca, al final de una espiración normal, sin meter el abdomen.',s:'Es el mejor sustituto de campo para la grasa abdominal, incluida la visceral, que es la que más pesa en el riesgo cardiometabólico.'},
+cad:{q:'Contorno de la cadera en su punto más ancho.',c:'A nivel de la máxima protrusión glútea, con los pies juntos.',s:'Combina masa glútea y grasa. Sube tanto por entrenar pierna como por acumular grasa, así que conviene leerla junto con el pliegue del muslo.'},
+mmed:{q:'Contorno del muslo a media altura.',c:'A media distancia entre el pliegue inguinal y el borde superior de la rótula, peso repartido en ambos pies.',s:'Tamaño total del muslo. Corregido con el pliegue, se vuelve un indicador de masa muscular de la pierna.'},
+pier:{q:'Contorno máximo de la pantorrilla.',c:'Se desliza la cinta hasta encontrar el perímetro mayor, con el pie apoyado y el peso repartido.',s:'Junto con el pliegue de pierna permite seguir el músculo de la pantorrilla, que suele responder despacio al entrenamiento.'},
+
+bcor:{q:'El perímetro del brazo una vez descontada la grasa que lo rodea.',c:'Perímetro relajado menos π por el pliegue del tríceps en cm: <code>31,9 − π × 0,80 = 29,39</code>.',s:'Aísla músculo y hueso. Es la variable más directa para seguir hipertrofia del brazo, porque no la contamina un cambio de grasa.'},
+mcor:{q:'El perímetro del muslo sin la capa de grasa.',c:'Perímetro del muslo medio menos π por el pliegue del muslo en cm: <code>56,1 − π × 1,55 = 51,23</code>.',s:'Sigue el músculo del muslo. Entra además en la ecuación de Lee que estima tu masa muscular total.'},
+pcor:{q:'El perímetro de la pantorrilla sin la capa de grasa.',c:'Perímetro de pierna menos π por el pliegue de pierna en cm: <code>36,3 − π × 1,00 = 33,16</code>.',s:'Al depender de dos medidas pequeñas, es la más ruidosa de las tres corregidas: un milímetro de pliegue mueve tres del resultado.'},
+difb:{q:'Cuánto crece el brazo al contraerlo.',c:'Perímetro flexionado y contraído menos perímetro relajado.',s:'Tu informe considera normal cualquier valor por encima de 0,1 cm. Una diferencia amplia sugiere buena capacidad de contracción más que volumen.'},
+
+adip:{q:'La masa del tejido adiposo completo, no solo la grasa.',c:'Modelo de fraccionamiento de Kerr (1991), que reparte el peso en cinco tejidos a partir de pliegues, perímetros y diámetros escalados al Phantom.',s:'Pesa más que la masa grasa porque el tejido adiposo incluye agua, vasos y tejido conectivo, no solo lípido. Por eso aquí ves 17 kg y en masa grasa 7 kg: son dos definiciones distintas, no una contradicción.'},
+musc:{q:'La masa músculo-esquelética estimada.',c:'Ecuación de Lee (2000), que combina talla, los perímetros corregidos de brazo, muslo y pierna, edad, sexo y etnia.',s:'Es la variable de referencia para seguir hipertrofia. Al depender de los perímetros corregidos, mejora cuando crece el músculo o cuando baja el pliegue del mismo segmento.'},
+pcta:{q:'Qué porcentaje de tu peso es tejido adiposo.',c:'Tejido adiposo ÷ masa corporal × 100.',s:'Útil para ver si la grasa crece más rápido o más lento que el peso total. Si el peso sube y este porcentaje baja, la ganancia fue mayormente magra.'},
+pctm:{q:'Qué porcentaje de tu peso es tejido muscular.',c:'Tejido muscular ÷ masa corporal × 100.',s:'Puede bajar aunque los kilos de músculo suban, si el peso total sube más rápido. Conviene leerlo junto a los kilos absolutos.'},
+pcto:{q:'Todo lo que no es músculo ni tejido adiposo: hueso, piel, órganos y masa residual.',c:'Masa corporal menos tejido adiposo menos tejido muscular, dividido entre la masa corporal.',s:'Es en buena parte estructura fija. Si sube mucho de golpe, suele indicar variación de hidratación o ruido de medición más que un cambio real.'},
+gras:{q:'Los kilos de lípido corporal según un modelo de dos componentes.',c:'Yuhasz modificado por Carter: <code>%grasa = 0,1051 × Σ6 pliegues + 2,585</code>, multiplicado por la masa corporal.',s:'Al depender solo de los pliegues, se mueve exactamente igual que la suma de 6. No es lo mismo que el tejido adiposo de Kerr.'},
+mlg:{q:'Todo el peso que no es grasa: músculo, hueso, órganos y agua.',c:'Masa corporal menos masa grasa.',s:'En una etapa de ganancia, lo deseable es que suba más que la masa grasa. Es el mejor resumen de una sola cifra para saber si el aumento de peso fue útil.'},
+pctg:{q:'La fracción de tu peso que es grasa.',c:'La misma fórmula de Yuhasz aplicada a la suma de 6 pliegues, sin multiplicar por el peso.',s:'Al no depender del peso, aísla el cambio de adiposidad del cambio de tamaño. Es la lectura más limpia de si estás más magro o menos.'},
+iam:{q:'Cuántos kilos de grasa transporta cada kilo de músculo.',c:'Tejido adiposo ÷ tejido muscular.',s:'Mientras más bajo, más eficiente el desplazamiento. Se mantiene estable si músculo y grasa crecen en la misma proporción, aunque el peso cambie.'},
+
+dsup:{q:'Qué parte de tu grasa subcutánea está en la mitad superior.',c:'(tríceps + subescapular) ÷ suma de 6 pliegues × 100.',s:'Indica dónde tiende a acumular tu cuerpo. El patrón es bastante individual y cambia poco.'},
+dcen:{q:'Qué parte de tu grasa subcutánea está en el tronco medio.',c:'(supraespinal + abdominal) ÷ suma de 6 pliegues × 100.',s:'La zona con más peso en el riesgo metabólico. Que baje mientras la suma total sube es una señal favorable.'},
+dinf:{q:'Qué parte de tu grasa subcutánea está en la pierna.',c:'(muslo + pierna) ÷ suma de 6 pliegues × 100.',s:'La grasa de extremidades inferiores es metabólicamente más benigna que la del tronco.'},
+mbra:{q:'Qué parte de tu masa muscular aparente corresponde al brazo.',c:'Brazo corregido ÷ (brazo + muslo + pierna corregidos) × 100.',s:'Muestra si el desarrollo va parejo entre segmentos o si un tren domina sobre el otro.'},
+mmsl:{q:'Qué parte de tu masa muscular aparente corresponde al muslo.',c:'Muslo corregido ÷ (brazo + muslo + pierna corregidos) × 100.',s:'El muslo aporta cerca de la mitad del total, así que domina cualquier lectura global de músculo.'},
+mpie:{q:'Qué parte de tu masa muscular aparente corresponde a la pantorrilla.',c:'Pierna corregida ÷ (brazo + muslo + pierna corregidos) × 100.',s:'La pantorrilla responde despacio al entrenamiento, así que su proporción suele bajar cuando crecen brazo y muslo.'},
+gtro:{q:'Qué parte de tu grasa subcutánea está en el tronco.',c:'(subescapular + supraespinal + abdominal) ÷ suma de 6 pliegues × 100.',s:'Es la lectura más relevante de las tres para salud metabólica.'},
+gext:{q:'Qué parte de tu grasa subcutánea está en las extremidades.',c:'(tríceps + muslo + pierna) ÷ suma de 6 pliegues × 100.',s:'El complemento del tronco. Que suba a costa del tronco es preferible, aunque la suma total no cambie.'},
+idg:{q:'La relación entre la grasa de extremidades y la del tronco.',c:'Pliegues de extremidades ÷ pliegues del tronco.',s:'Mientras más bajo, más concentrada en el tronco, que es el patrón asociado a mayor riesgo. Un valor cercano a 1 indica reparto parejo.'},
+
+imc:{q:'La relación entre peso y estatura.',c:'<code>masa ÷ talla²</code>, en kg/m².',s:'No distingue músculo de grasa, así que en alguien entrenado sobreestima el riesgo. Con 25,3 tu informe marca sobrepeso mientras tu grasa estimada ronda el 10%: la contradicción es del índice, no tuya.'},
+icc:{q:'La forma del torso: qué tan ancha es la cintura respecto a la cadera.',c:'Cintura ÷ caderas.',s:'Un valor bajo indica reparto de grasa favorable. Es más informativo que el IMC porque mira la distribución, no el tamaño.'},
+icon:{q:'Qué tanto se aleja tu tronco de la forma de un cilindro.',c:'<code>cintura(m) ÷ (0,109 × √(masa ÷ talla))</code>, con masa en kg y talla en m.',s:'Cuanto más lejos de 1, más acumulación central. Al ajustar por peso y talla, permite comparar entre personas de tamaños distintos.'},
+ict:{q:'Cuánto mide tu cintura respecto a tu estatura.',c:'Cintura ÷ talla, en las mismas unidades.',s:'La regla simple es mantener la cintura por debajo de la mitad de la estatura. Es el índice antropométrico que mejor predice riesgo cardiometabólico en población general.'},
+
+tmb:{q:'La energía que gastarías en reposo absoluto, solo por mantenerte vivo.',c:'Ecuación de Harris & Benedict (1919), a partir de peso, talla, edad y sexo.',s:'Es una estimación de población, no una medición tuya. Sube cuando sube la masa magra, así que su bajada entre ago y oct 2025 refleja la pérdida de peso de ese periodo.'},
+get:{q:'La energía total que gastarías en un día, entrenamiento incluido.',c:'Metabolismo basal × 2,0, el factor que corresponde al nivel «activo, alta actividad» registrado en tu informe.',s:'El factor es una categoría gruesa, no una medición de tu actividad real. Sirve como punto de partida, no como objetivo calórico exacto.'},
+asc:{q:'La superficie total de tu piel.',c:'Fórmula de Mosteller: <code>√(talla_cm × peso_kg ÷ 3600)</code>.',s:'Se usa en dosificación clínica y en cálculos de intercambio de calor. Tu informe la compara contra un valor de referencia de 1,9 m².'},
+ipc:{q:'Cuánta superficie de piel tienes disponible por cada kilo de cuerpo.',c:'Superficie corporal en cm² ÷ masa en kg. En tu caso, 17 900 cm² entre 69 kg dan 259.',s:'Mientras más alto, más fácil disipar calor. Baja al ganar peso, que es justo lo que pasó entre tus dos primeras mediciones a la inversa.'}
+};
+
 /* --- marcadores con nota --- */
 const DERIVED_TIP='Valor derivado, no impreso en ese informe. Se calculó con la misma fórmula que usan los informes y se verificó contra las sesiones donde sí viene reportado.';
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
 function flagHTML(V){
   return V.flag ? ` <button type="button" class="flag" data-tip="${esc(V.flag)}" aria-label="Nota de método sobre ${esc(V.n)}">▲</button>` : '';
 }
+const TIPSEL='[data-tip],[data-def]';
 const tip=document.getElementById('tip');
 let tipOwner=null, tipPinned=false;
+function tipBody(node){
+  const dk=node.getAttribute('data-def');
+  if(dk && DEFS[dk]){
+    const d=DEFS[dk], V=VARS.find(v=>v.k===dk);
+    return {warn:false, html:`<h5>${V?V.n:''}</h5>`+
+      `<div class="r"><b>Qué es</b><span>${d.q}</span></div>`+
+      `<div class="r"><b>Cómo se obtiene</b><span>${d.c}</span></div>`+
+      `<div class="r"><b>Qué significa</b><span>${d.s}</span></div>`};
+  }
+  return {warn:true, html:`<div class="r"><b>Nota de método</b><span>${esc(node.getAttribute('data-tip')||'')}</span></div>`};
+}
 function showTip(node){
-  tip.textContent=node.getAttribute('data-tip');
+  const b=tipBody(node);
+  tip.innerHTML=b.html;
+  tip.classList.toggle('warn',b.warn);
   tip.hidden=false;
-  const tw=Math.min(330, window.innerWidth-28);
+  const tw=Math.min(b.warn?330:390, window.innerWidth-28);
   tip.style.width=tw+'px';
-  const r=node.getBoundingClientRect();
+  const r=node.getBoundingClientRect(), th=tip.offsetHeight;
   let left=r.left+window.scrollX-10;
   left=Math.max(window.scrollX+12, Math.min(left, window.scrollX+window.innerWidth-tw-14));
+  const below=(r.bottom+10+th<=window.innerHeight)||(r.top-10-th<0);
   tip.style.left=left+'px';
-  tip.style.top=(r.bottom+window.scrollY+8)+'px';
+  tip.style.top=(below? r.bottom+window.scrollY+9 : r.top+window.scrollY-th-9)+'px';
   if(tipOwner&&tipOwner!==node) tipOwner.removeAttribute('aria-expanded');
   node.setAttribute('aria-expanded','true');
   tipOwner=node;
@@ -634,15 +729,15 @@ function hideTip(){
 }
 document.addEventListener('pointerover',e=>{
   if(tipPinned)return;
-  const t=e.target.closest&&e.target.closest('[data-tip]');
+  const t=e.target.closest&&e.target.closest(TIPSEL);
   if(t) showTip(t); else if(tipOwner) hideTip();
 });
 document.addEventListener('focusin',e=>{
-  const t=e.target.closest&&e.target.closest('[data-tip]');
+  const t=e.target.closest&&e.target.closest(TIPSEL);
   if(t) showTip(t);
 });
 document.addEventListener('click',e=>{
-  const t=e.target.closest&&e.target.closest('[data-tip]');
+  const t=e.target.closest&&e.target.closest(TIPSEL);
   if(t){ e.preventDefault(); if(tipPinned&&tipOwner===t){hideTip();} else {showTip(t); tipPinned=true;} return; }
   if(tipPinned) hideTip();
 });
@@ -737,7 +832,7 @@ function tile(V){
 
   const top=document.createElement('div'); top.className='tile-top';
   const nm=document.createElement('div');
-  nm.innerHTML=`<div class="tile-name">${V.n}${flagHTML(V)}</div><div class="tile-unit">${V.u}</div>`;
+  nm.innerHTML=`<div class="tile-name"><button type="button" class="defbtn" data-def="${V.k}">${V.n}</button>${flagHTML(V)}</div><div class="tile-unit">${V.u}</div>`;
   const pin=document.createElement('button');
   pin.className='pin'; pin.type='button';
   pin.setAttribute('aria-pressed',state.sel.has(V.k)?'true':'false');
@@ -941,7 +1036,7 @@ function drawZWall(){
   items.forEach(it=>{
     const row=document.createElement('div'); row.className='zrow';
     const nm=document.createElement('div'); nm.className='zn';
-    nm.innerHTML=`${it.v.n} <span style="color:#7C8F9B;font-weight:400">· ${GROUPS.find(g=>g.id===it.v.g).name.toLowerCase()}</span>`;
+    nm.innerHTML=`<button type="button" class="defbtn" data-def="${it.v.k}">${it.v.n}</button> <span style="color:#7C8F9B;font-weight:400">· ${GROUPS.find(g=>g.id===it.v.g).name.toLowerCase()}</span>`;
     row.appendChild(nm);
 
     const s=document.createElementNS(SVGNS,'svg'); s.setAttribute('viewBox','0 0 '+RW+' 32');
@@ -1108,7 +1203,7 @@ function buildFullTable(){
     html+=`<tr class="grp"><td colspan="${SESSIONS.length+2}">${g.name}</td></tr>`;
     rows.forEach(V=>{
       const fi=firstIdx(V.v), li=lastIdx(V.v), dif=V.v[li]-V.v[fi], D=decOf(V);
-      html+=`<tr><td>${V.n} <span style="color:#7C8F9B">${V.u==='—'?'':'· '+V.u}</span>${flagHTML(V)}</td>`;
+      html+=`<tr><td><button type="button" class="defbtn" data-def="${V.k}">${V.n}</button> <span style="color:#7C8F9B">${V.u==='—'?'':'· '+V.u}</span>${flagHTML(V)}</td>`;
       V.v.forEach((x,i)=>{
         const der=V.derived&&V.derived[i];
         html+=`<td class="num${x==null?' dim':''}">${fmt(x,D)}${der?' <button type="button" class="flag dot" data-tip="'+esc(DERIVED_TIP)+'" aria-label="Valor derivado">·</button>':''}</td>`;
